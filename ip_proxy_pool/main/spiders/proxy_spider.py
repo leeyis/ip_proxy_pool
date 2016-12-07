@@ -1,19 +1,9 @@
 # -*- coding: utf-8 -*-
-import scrapy
+
 from scrapy.linkextractors import LinkExtractor
 from scrapy.spiders import CrawlSpider, Rule
+from items import IpProxyPoolItem
 
-class IpProxyPoolItem(scrapy.Item):
-
-    ip_port = scrapy.Field()
-    type = scrapy.Field()
-    level = scrapy.Field()
-    location = scrapy.Field()
-    speed = scrapy.Field()
-    lifetime = scrapy.Field()
-    lastcheck = scrapy.Field()
-    rule_id = scrapy.Field()
-    source = scrapy.Field()
 
 class ProxySpiderSpider(CrawlSpider):
     name = 'MagicSpider'

@@ -4,14 +4,16 @@
 #
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: http://doc.scrapy.org/en/latest/topics/item-pipeline.html
+import logging
+
 import MySQLdb
-from scrapy.exceptions import DropItem
 import redis
 from model import loadSession
-from model import proxy
 from scrapy import log
+from scrapy.exceptions import DropItem
 
-import logging
+from model.proxy import Proxy
+
 Redis = redis.StrictRedis(host='localhost',port=6379,db=0)
 
 # 去重
@@ -28,7 +30,7 @@ class IpProxyPoolPipeline(object):
 
     def process_item(self, item, spider):
         if len(item['ip_port']):
-            a = proxy.Proxy(
+            a = Proxy(
                 ip_port=item['ip_port'],
                 type=item['type'],
                 level=item['level'],

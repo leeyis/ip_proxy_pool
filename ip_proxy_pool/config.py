@@ -1,17 +1,6 @@
 # -*- coding: utf-8 -*-
-import datetime
-import httplib
-import random
-import urllib2
 
-from lxml import etree as ET
-
-from ip_proxy_pool.main.spiders.model.proxy import Proxy
-from ..model import loadSession
-
-
-def checkProxy(proxyIP=None,protocol="http",retry_times=3,timeout=5):
-    user_agent_list = [ \
+user_agent_list = [\
         "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.1 "
         "(KHTML, like Gecko) Chrome/22.0.1207.1 Safari/537.1",
         "Mozilla/5.0 (X11; CrOS i686 2268.111.0) AppleWebKit/536.11 "
@@ -87,71 +76,4 @@ def checkProxy(proxyIP=None,protocol="http",retry_times=3,timeout=5):
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_3) AppleWebKit/535.20 "
         "(KHTML, like Gecko) Chrome/19.0.1036.7 Safari/535.20",
         "Opera/9.80 (Macintosh; Intel Mac OS X 10.6.8; U; fr) Presto/2.9.168 Version/11.52"
-    ]
-    headers = {
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Accept-Language": "zh-CN,zh;q=0.8",
-        "Cache-Control": "max-age=0",
-        "Connection": "keep-alive",
-        "Host": "ip.cn",
-        "Upgrade-Insecure-Requests": "1",
-        "User-Agent": random.choice(user_agent_list)
-    }
-    urllib2.socket.setdefaulttimeout(timeout)
-    if proxyIP:
-        proxy_handler = urllib2.ProxyHandler({protocol: "%s://%s" % (protocol, proxyIP)})
-    else:
-        proxy_handler = urllib2.ProxyHandler({})
-
-    opener = urllib2.build_opener(proxy_handler)
-    urllib2.install_opener(opener)
-    req = urllib2.Request("http://ip.cn", headers=headers)
-    result = {}
-
-    try:
-        starttime = datetime.datetime.now()
-        response = urllib2.urlopen(req).read()
-        html = ET.HTML(response)
-        rstIP=html.xpath("//div[@id='result']/div[@class='well']/p[1]/code/text()")[0]
-        rstLocation=html.xpath("//div[@id='result']/div[@class='well']/p[2]/code/text()")[0]
-        cost = (datetime.datetime.now() - starttime).seconds
-
-        if rstIP:
-            result["rstIP"] = rstIP
-            result["rstLocation"] = rstLocation
-            result["cost"] = cost
-            result["status"] = "ok"
-            return result
-        else:
-            return -1
-
-    except urllib2.URLError, e:
-        if hasattr(e, "reason"):
-            result["status"]="error"
-            result["reason"] = e.reason
-            result["msg"] = "Failed to reach the server!"
-            return result
-        elif hasattr(e, "code"):
-            result["status"] = "error"
-            result[" code"] =  e.code
-            result["msg"] = "The server couldn't fulfill the request!"
-        else:
-            return -1
-    except urllib2.socket.timeout,e:
-        result["status"] = "error"
-        result["msg"] = e.message
-        return result
-    except httplib.BadStatusLine, e:
-        result["status"] = "error"
-        result["msg"] = e.message
-
-
-if __name__=="__main__":
-    session=loadSession()
-    proxies=session.query(Proxy).first()
-    for proxy in proxies:
-        print proxy.ip_port
-    # print checkProxy(protocol="http", retry_times=3, timeout=5)
-
-
-
+       ]

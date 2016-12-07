@@ -1,10 +1,7 @@
 # -*- coding: utf-8 -*-
-from model import loadSession
-from model import proxy
-from model.rules import Rule
-
-from model import Base,engine
-
+from ip_proxy_pool.main.spiders.model import Base,engine
+from ip_proxy_pool.main.spiders.model import Rule
+from ip_proxy_pool.main.spiders.model import loadSession
 
 Base.metadata.create_all(engine)
 

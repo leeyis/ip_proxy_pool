@@ -1,19 +1,18 @@
 # -*- coding: utf-8 -*-
-from spiders.proxy_spider import ProxySpiderSpider
-from model import loadSession
-from model.rules import Rule
 from scrapy.crawler import CrawlerProcess
 from scrapy.settings import Settings
 
-
+from main.spiders.model.rules import Rule
+from main.spiders.model import loadSession
+from main.spiders.proxy_spider import ProxySpiderSpider
 
 settings = Settings()
 
 # crawl settings
 
 settings.set("ITEM_PIPELINES" , {
-    'pipelines.DuplicatesPipeline': 200,
-    'pipelines.IpProxyPoolPipeline': 300,
+    'main.spiders.pipelines.DuplicatesPipeline': 200,
+    'main.spiders.pipelines.IpProxyPoolPipeline': 300,
 })
 
 settings.set("DEFAULT_REQUEST_HEADERS",{
@@ -22,8 +21,8 @@ settings.set("DEFAULT_REQUEST_HEADERS",{
 )
 
 settings.set("DOWNLOADER_MIDDLEWARES",{
-    'middlewares.useragent_middlewares.UserAgent': 1,
-    'middlewares.proxy_middlewares.ProxyMiddleware': 100,
+    'main.spiders.middlewares.useragent_middlewares.UserAgent': 1,
+    'main.spiders.middlewares.proxy_middlewares.ProxyMiddleware': 100,
    'scrapy.downloadermiddleware.useragent.UserAgentMiddleware' : None,
 }
 )
