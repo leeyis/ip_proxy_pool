@@ -3,14 +3,13 @@ import datetime
 import httplib
 import random
 import urllib2
-
 from lxml import etree as ET
 
 from ip_proxy_pool.main.spiders.model.proxy import Proxy
-from ..model import loadSession
+from ip_proxy_pool.main.spiders.model import loadSession
 
 
-def checkProxy(proxyIP=None,protocol="http",retry_times=3,timeout=5):
+def checkProxy(proxyIP=None,protocol="http",timeout=5):
     user_agent_list = [ \
         "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.1 "
         "(KHTML, like Gecko) Chrome/22.0.1207.1 Safari/537.1",
@@ -108,6 +107,7 @@ def checkProxy(proxyIP=None,protocol="http",retry_times=3,timeout=5):
     req = urllib2.Request("http://ip.cn", headers=headers)
     result = {}
 
+
     try:
         starttime = datetime.datetime.now()
         response = urllib2.urlopen(req).read()
@@ -123,8 +123,9 @@ def checkProxy(proxyIP=None,protocol="http",retry_times=3,timeout=5):
             result["status"] = "ok"
             return result
         else:
-            return -1
-
+            result["msg"] = "get ip info failed!"
+            result["status"] = "error"
+            return result
     except urllib2.URLError, e:
         if hasattr(e, "reason"):
             result["status"]="error"
@@ -136,7 +137,9 @@ def checkProxy(proxyIP=None,protocol="http",retry_times=3,timeout=5):
             result[" code"] =  e.code
             result["msg"] = "The server couldn't fulfill the request!"
         else:
-            return -1
+            result["msg"] = "unknown error!"
+            result["status"] = "error"
+            return result
     except urllib2.socket.timeout,e:
         result["status"] = "error"
         result["msg"] = e.message
@@ -146,12 +149,52 @@ def checkProxy(proxyIP=None,protocol="http",retry_times=3,timeout=5):
         result["msg"] = e.message
 
 
-if __name__=="__main__":
-    session=loadSession()
-    proxies=session.query(Proxy).first()
+def getproxy(num=10):
+    import socket
+    session = loadSession()
+    proxies = session.query(Proxy).order_by(Proxy.indate.desc()).limit(num)
     for proxy in proxies:
-        print proxy.ip_port
-    # print checkProxy(protocol="http", retry_times=3, timeout=5)
+        ip= proxy.ip_port.split(":")
+        try:
+            _s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            _s.settimeout(2)
+            _s.connect((ip[0], int(ip[1])))
+            _s.close()
+            print "%s is ok!" % proxy.ip_port
+        except:
+            print "%s is dead!" % proxy.ip_port
+            deleteProxy(proxy.ip_port)
+
+
+def deleteProxy(proxyIP):
+    session = loadSession()
+    session.query(Proxy).filter(Proxy.ip_port == proxyIP).delete()
+    session.commit()
+
+
+if __name__=="__main__":
+    # origin= checkProxy(protocol="http", timeout=3)
+    # if origin["status"] == "ok":
+    #     realip =origin["rstIP"]
+    #
+    #
+    #
+    #
+    #
+    #
+    #
+    #
+    #     print realip
+    # else:
+    #     print result
+
+    getproxy()
+
+
+
+
+
+
 
 
 

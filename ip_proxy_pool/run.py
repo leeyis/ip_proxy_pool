@@ -1,37 +1,25 @@
 # -*- coding: utf-8 -*-
 from scrapy.crawler import CrawlerProcess
 from scrapy.settings import Settings
-
+from main.spiders import config
 from main.spiders.model.rules import Rule
 from main.spiders.model import loadSession
 from main.spiders.proxy_spider import ProxySpiderSpider
 
 settings = Settings()
 
-# crawl settings
 
-settings.set("ITEM_PIPELINES" , {
-    'main.spiders.pipelines.DuplicatesPipeline': 200,
-    'main.spiders.pipelines.IpProxyPoolPipeline': 300,
-})
+settings.set("ITEM_PIPELINES" ,config.ITEM_PIPELINES)
 
-settings.set("DEFAULT_REQUEST_HEADERS",{
-  'Accept': 'text/html, application/xhtml+xml, application/xml',
-  'Accept-Language': 'zh-CN,zh;q=0.8'}
-)
+settings.set("DEFAULT_REQUEST_HEADERS",config.DEFAULT_REQUEST_HEADERS)
 
-settings.set("DOWNLOADER_MIDDLEWARES",{
-    'main.spiders.middlewares.useragent_middlewares.UserAgent': 1,
-    'main.spiders.middlewares.proxy_middlewares.ProxyMiddleware': 100,
-   'scrapy.downloadermiddleware.useragent.UserAgentMiddleware' : None,
-}
-)
+settings.set("DOWNLOADER_MIDDLEWARES",config.DOWNLOADER_MIDDLEWARES)
 
-settings.set("DOWNLOAD_DELAY",1)
+settings.set("DOWNLOAD_DELAY",config.DOWNLOAD_DELAY)
 
-settings.get("COOKIES_ENABLED",False)
+settings.get("COOKIES_ENABLED",config.COOKIES_ENABLED)
 
-settings.get("ROBOTSTXT_OBEY",True)
+settings.get("ROBOTSTXT_OBEY",config.ROBOTSTXT_OBEY)
 
 process = CrawlerProcess(settings)
 
