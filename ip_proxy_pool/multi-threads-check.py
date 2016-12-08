@@ -1,13 +1,30 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python
+# -*- coding:utf-8 -*-
+import threading
+import socket
+import Queue
 import datetime
-import httplib
 import random
 import urllib2
+import httplib
+
+import MySQLdb
 from lxml import etree as ET
+from main.spiders.model.proxy import Proxy
+from main.spiders.model.freshProxy import freshProxy
+from main.spiders.model import loadSession
 
-from ip_proxy_pool.main.spiders.model.proxy import Proxy
-from ip_proxy_pool.main.spiders.model import loadSession
+SHARE_Q = Queue.Queue()  #构造一个不限制大小的的队列,存放待验证的代理
+ACTIVE_Q = Queue.Queue() #构造一个不限制大小的的队列,存放活动的代理
+VALID_PROXY = [] #存放有效的代理
 
+_WORKER_THREAD_NUM = 50   #设置线程个数
+class MyThread(threading.Thread) :
+    def __init__(self, func) :
+        super(MyThread, self).__init__()
+        self.func = func
+    def run(self) :
+        self.func()
 
 def checkProxy(proxyIP=None,protocol="http",timeout=5):
     user_agent_list = [ \
@@ -111,10 +128,19 @@ def checkProxy(proxyIP=None,protocol="http",timeout=5):
     try:
         starttime = datetime.datetime.now()
         response = urllib2.urlopen(req).read()
-        html = ET.HTML(response)
-        rstIP=html.xpath("//div[@id='result']/div[@class='well']/p[1]/code/text()")[0]
-        rstLocation=html.xpath("//div[@id='result']/div[@class='well']/p[2]/code/text()")[0]
-        cost = (datetime.datetime.now() - starttime).seconds
+        try:
+            html = ET.HTML(response)
+            if html is not None:
+                tmp_rstIP = html.xpath("//div[@id='result']/div[@class='well']/p[1]/code/text()")
+                rstIP = tmp_rstIP[0] if len(tmp_rstIP) else ""
+                tmp_rstLocation = html.xpath("//div[@id='result']/div[@class='well']/p[2]/code/text()")
+                rstLocation = tmp_rstLocation[0] if len(tmp_rstLocation) else ""
+                cost = (datetime.datetime.now() - starttime).seconds
+            else:
+                rstIP = ""
+
+        except ET.XMLSyntaxError,e:
+            rstIP=""
 
         if rstIP:
             result["rstIP"] = rstIP
@@ -144,57 +170,72 @@ def checkProxy(proxyIP=None,protocol="http",timeout=5):
         result["status"] = "error"
         result["msg"] = e.message
         return result
+    except socket.error,e:
+        result["status"] = "error"
+        result["msg"] = e.message
     except httplib.BadStatusLine, e:
         result["status"] = "error"
         result["msg"] = e.message
 
-
-def getproxy(num=10):
-    import socket
-    session = loadSession()
-    proxies = session.query(Proxy).order_by(Proxy.indate.desc()).limit(num)
-    for proxy in proxies:
-        ip= proxy.ip_port.split(":")
-        try:
-            _s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            _s.settimeout(2)
-            _s.connect((ip[0], int(ip[1])))
-            _s.close()
-            print "%s is ok!" % proxy.ip_port
-        except:
-            print "%s is dead!" % proxy.ip_port
-            deleteProxy(proxy.ip_port)
-
+def worker() :
+    global SHARE_Q
+    while not SHARE_Q.empty():
+        item = SHARE_Q.get() #获得任务
+        checkActive(item)
 
 def deleteProxy(proxyIP):
     session = loadSession()
     session.query(Proxy).filter(Proxy.ip_port == proxyIP).delete()
     session.commit()
 
+def checkActive(ip_port):
+    global ACTIVE_Q
+    ip = ip_port.split(":")
+    try:
+        _s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        _s.settimeout(2)
+        _s.connect((ip[0], int(ip[1])))
+        _s.close()
+        # print "%s is ok!" % ip_port
+        ACTIVE_Q.put(ip_port)
+    except:
+        deleteProxy(ip_port)
 
-if __name__=="__main__":
-    origin= checkProxy(protocol="http", timeout=3)
-    if origin["status"] == "ok":
-        realip =origin["rstIP"]
+def checkValid(ip_port):
+    rst = checkProxy(proxyIP=ip_port,protocol="http",timeout=3)
+    if rst is not None and rst["status"] == "ok":
+        proxy = freshProxy(ip_port=ip_port,type="HTTP",location=rst["rstLocation"].encode("utf-8"))
+        print rst["rstIP"]
+        print rst["rstLocation"].encode("utf-8")
+        session=loadSession()
+        try:
+            session.merge(proxy)
+            session.commit()
+        except MySQLdb.IntegrityError, e:
+            print e.message
 
-
-
-
-
-
-
-
-        print realip
     else:
-        print result
+        deleteProxy(ip_port)
 
-    getproxy()
-
-
-
-
-
-
-
-
-
+def main() :
+    global SHARE_Q
+    global ACTIVE_Q
+    threads = []
+    session=loadSession()
+    proxies = session.query(Proxy).filter(Proxy.type == "HTTP").order_by(Proxy.indate.desc()).limit(10000)
+    for proxy in proxies :  #向队列中放入任务
+        SHARE_Q.put(proxy.ip_port)
+    for i in xrange(_WORKER_THREAD_NUM) :
+        thread = MyThread(worker)
+        thread.start()
+        threads.append(thread)
+    for thread in threads :
+        thread.join()
+    while not ACTIVE_Q.empty():
+        item = ACTIVE_Q.get()
+        checkValid(item)
+if __name__ == '__main__':
+    starttime=datetime.datetime.now()
+    main()
+    costtimie=(datetime.datetime.now()-starttime).seconds
+    print "total cost:%d s" %costtimie

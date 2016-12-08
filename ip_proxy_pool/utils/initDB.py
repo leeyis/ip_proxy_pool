@@ -2,6 +2,7 @@
 from ip_proxy_pool.main.spiders.model import Base,engine
 from ip_proxy_pool.main.spiders.model.rules import Rule
 from ip_proxy_pool.main.spiders.model.proxy import Proxy
+from ip_proxy_pool.main.spiders.model.freshProxy import freshProxy
 from ip_proxy_pool.main.spiders.model import loadSession
 
 Base.metadata.create_all(engine)

@@ -2,11 +2,18 @@
 import random
 from scrapy import log
 import logging
-
+from ..model import loadSession
+from ..model.freshProxy import freshProxy
 class ProxyMiddleware(object):
-    proxyList = [ \
-        '124.88.67.52:843'
-        ]
+    session=loadSession()
+    proxies = session.query(freshProxy).order_by(freshProxy.indate.desc()).all()
+    proxyList = []
+    for proxy in proxies:
+        if proxy.ip_port not in proxyList:
+            proxyList.append(proxy.ip_port)
+        else:
+            pass
+
 
     def process_request(self, request, spider):
         # Set the location of the proxy
