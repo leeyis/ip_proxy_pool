@@ -94,5 +94,3 @@ class ProxySpiderSpider(CrawlSpider):
                 item['source']=response.url
 
                 yield item
-
-
