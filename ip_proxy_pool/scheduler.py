@@ -9,9 +9,7 @@ sched = BlockingScheduler()
 
 def my_job():
     print 'my_job1 is running, Now is %s' % datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
 sched.add_jobstore('sqlalchemy',url='mysql+mysqldb://root:123456@localhost:3306/scrapy?charset=utf8')
-alarm_time = datetime.now() + timedelta(seconds=10)
 sched.add_job(my_job,'interval',id='myjob',seconds=5)
 
 # def my_listener(event):

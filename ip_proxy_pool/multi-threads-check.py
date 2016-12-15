@@ -18,7 +18,7 @@ SHARE_Q = Queue.Queue()  #构造一个不限制大小的的队列,存放待验�
 ACTIVE_Q = Queue.Queue() #构造一个不限制大小的的队列,存放活动的代理
 VALID_PROXY = [] #存放有效的代理
 
-_WORKER_THREAD_NUM = 50   #设置线程个数
+_WORKER_THREAD_NUM = 100   #设置线程个数
 class MyThread(threading.Thread) :
     def __init__(self, func) :
         super(MyThread, self).__init__()
@@ -26,7 +26,7 @@ class MyThread(threading.Thread) :
     def run(self) :
         self.func()
 
-def checkProxy(proxyIP=None,protocol="http",timeout=5):
+def checkProxy(proxyIP=None,protocol="http",timeout=3):
     user_agent_list = [ \
         "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.1 "
         "(KHTML, like Gecko) Chrome/22.0.1207.1 Safari/537.1",
@@ -222,7 +222,7 @@ def main() :
     global ACTIVE_Q
     threads = []
     session=loadSession()
-    proxies = session.query(Proxy).filter(Proxy.type == "HTTP").order_by(Proxy.indate.desc()).limit(10000)
+    proxies = session.query(Proxy).filter(Proxy.type == "HTTP").order_by(Proxy.indate.desc()).limit(20000)
     for proxy in proxies :  #向队列中放入任务
         SHARE_Q.put(proxy.ip_port)
     for i in xrange(_WORKER_THREAD_NUM) :

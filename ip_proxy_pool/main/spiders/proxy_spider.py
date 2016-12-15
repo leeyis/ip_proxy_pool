@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
-
+from scrapy import signals
+from scrapy.xlib.pydispatch import dispatcher
 from scrapy.linkextractors import LinkExtractor
 from scrapy.spiders import CrawlSpider, Rule
 from items import IpProxyPoolItem
-
-
+from model.spider_running_log import SpiderCrawlLog
+from model import loadSession
+from datetime import datetime
 class ProxySpiderSpider(CrawlSpider):
     name = 'MagicSpider'
-
     def __init__(self,rule):
+        dispatcher.connect(self.spider_opened, signals.spider_opened)
+        dispatcher.connect(self.spider_closed, signals.spider_closed)
         self.rule = rule
         self.name = rule.name
         self.allowed_domains = rule.allowed_domains.split(',')
@@ -28,6 +31,29 @@ class ProxySpiderSpider(CrawlSpider):
         self.rules = tuple(rule_list)
         super(ProxySpiderSpider, self).__init__()
 
+    def spider_closed(self, spider):
+        print "spider is closed!"
+        session = loadSession()
+        log = session.query(SpiderCrawlLog).filter(SpiderCrawlLog.spiderID == self.rule.id and SpiderCrawlLog.endTime is None).first()
+        log.endTime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        session.commit()
+
+        pass
+
+    def spider_opened(self, spider):
+        print "spider is running!"
+        item = SpiderCrawlLog(
+                              spiderID=self.rule.id,
+                              spiderName=self.rule.name,
+                              startTime=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                              endTime=None,
+                              pages=0,
+                              items=0
+                              )
+        session = loadSession()
+        session.add(item)
+        session.commit()
+        pass
 
     def parse_item(self, response):
         print 'Hi, this is an item page! %s' % response.url
@@ -35,7 +61,7 @@ class ProxySpiderSpider(CrawlSpider):
         item=IpProxyPoolItem()
 
         if len(self.rule.loop_xpath):
-            print 'Find %d items!'% len(response.xpath(self.rule.loop_xpath))
+            # print 'Find %d items!'% len(response.xpath(self.rule.loop_xpath))
             for proxy in response.xpath(self.rule.loop_xpath):
                 if len(self.rule.ip_xpath):
                     tmp_ip = proxy.xpath(self.rule.ip_xpath).extract_first()

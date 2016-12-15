@@ -11,7 +11,7 @@ import redis
 from model import loadSession
 from scrapy import log
 from scrapy.exceptions import DropItem
-
+from datetime import datetime
 from model.proxy import Proxy
 
 Redis = redis.StrictRedis(host='localhost',port=6379,db=0)
@@ -19,10 +19,10 @@ Redis = redis.StrictRedis(host='localhost',port=6379,db=0)
 # 去重
 class DuplicatesPipeline(object):
     def process_item(self, item, spider):
-        if Redis.exists('ip_port:%s' % item['ip_port']) :
+        if Redis.exists('ip_port:%s:%s' % (datetime.now().strftime("%Y%m%d"),item['ip_port'])) :
             raise DropItem("Duplicate item found: %s" % item)
         else:
-            Redis.set('ip_port:%s' % item['ip_port'],1)
+            Redis.set('ip_port:%s:%s' % (datetime.now().strftime("%Y%m%d"),item['ip_port']),1)
             return item
 
 
