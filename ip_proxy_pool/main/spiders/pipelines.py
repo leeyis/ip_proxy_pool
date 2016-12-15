@@ -13,6 +13,7 @@ from scrapy import log
 from scrapy.exceptions import DropItem
 from datetime import datetime
 from model.proxy import Proxy
+from model.spider_running_log import SpiderCrawlLog
 
 Redis = redis.StrictRedis(host='localhost',port=6379,db=0)
 
@@ -28,6 +29,12 @@ class DuplicatesPipeline(object):
 
 class IpProxyPoolPipeline(object):
 
+    def updateCrawlLog(self,item):
+        session = loadSession()
+        log = session.query(SpiderCrawlLog).filter(SpiderCrawlLog.spiderID == item["rule_id"]
+                                                      and SpiderCrawlLog.status =="Running...").first()
+        log.items = int(log.items) + 1
+        session.commit()
     def process_item(self, item, spider):
         if len(item['ip_port']):
             a = Proxy(
