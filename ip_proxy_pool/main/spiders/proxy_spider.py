@@ -34,7 +34,9 @@ class ProxySpiderSpider(CrawlSpider):
     def spider_closed(self, spider):
         print "spider is closed!"
         session = loadSession()
-        log = session.query(SpiderCrawlLog).filter(SpiderCrawlLog.spiderID == self.rule.id and SpiderCrawlLog.endTime is None).first()
+        log = session.query(SpiderCrawlLog).filter(SpiderCrawlLog.spiderID == self.rule.id
+                                                   and SpiderCrawlLog.endTime is None
+                                                   ).first()
         log.endTime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         session.commit()
 
@@ -45,19 +47,36 @@ class ProxySpiderSpider(CrawlSpider):
         item = SpiderCrawlLog(
                               spiderID=self.rule.id,
                               spiderName=self.rule.name,
+                              status="Running...",
                               startTime=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                               endTime=None,
                               pages=0,
                               items=0
                               )
         session = loadSession()
-        session.add(item)
-        session.commit()
-        pass
+        log = session.query(SpiderCrawlLog).filter(
+            SpiderCrawlLog.spiderID == self.rule.id
+            and SpiderCrawlLog.endTime is None)
+
+        # 查询当前spider是否有未结束的日志
+        if len(log) == 0:
+            session.add(item)
+            session.commit()
+        else:
+            pass
 
     def parse_item(self, response):
-        print 'Hi, this is an item page! %s' % response.url
+        # print 'Hi, this is an item page! %s' % response.url
         # print response.body
+
+        session = loadSession()
+        log = session.query(SpiderCrawlLog).filter(SpiderCrawlLog.spiderID == self.rule.id
+                                                   and SpiderCrawlLog.status == "Running...").first()
+        log.pages = int(log.pages) + 1
+        session.commit()
+
+
+
         item=IpProxyPoolItem()
 
         if len(self.rule.loop_xpath):
