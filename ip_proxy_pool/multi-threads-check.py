@@ -18,7 +18,7 @@ SHARE_Q = Queue.Queue()  #构造一个不限制大小的的队列,存放待验�
 ACTIVE_Q = Queue.Queue() #构造一个不限制大小的的队列,存放活动的代理
 VALID_PROXY = [] #存放有效的代理
 
-_WORKER_THREAD_NUM = 100   #设置线程个数
+_WORKER_THREAD_NUM = 200   #设置线程个数
 class MyThread(threading.Thread) :
     def __init__(self, func) :
         super(MyThread, self).__init__()
@@ -26,7 +26,7 @@ class MyThread(threading.Thread) :
     def run(self) :
         self.func()
 
-def checkProxy(proxyIP=None,protocol="http",timeout=3):
+def checkProxy(proxyIP=None,protocol="http",timeout=5):
     user_agent_list = [ \
         "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.1 "
         "(KHTML, like Gecko) Chrome/22.0.1207.1 Safari/537.1",
@@ -183,28 +183,39 @@ def worker() :
         item = SHARE_Q.get() #获得任务
         checkActive(item)
 
-def deleteProxy(proxyIP):
+def deleteProxy(item):
     session = loadSession()
-    session.query(Proxy).filter(Proxy.ip_port == proxyIP).delete()
+    session.query(Proxy).filter(Proxy.ip_port == item.ip_port).delete()
     session.commit()
 
-def checkActive(ip_port):
+def checkActive(item):
     global ACTIVE_Q
-    ip = ip_port.split(":")
+    ip = item.ip_port.split(":")
     try:
         _s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         _s.settimeout(2)
         _s.connect((ip[0], int(ip[1])))
         _s.close()
         # print "%s is ok!" % ip_port
-        ACTIVE_Q.put(ip_port)
+        ACTIVE_Q.put(item)
     except:
-        deleteProxy(ip_port)
+        deleteProxy(item)
 
-def checkValid(ip_port):
-    rst = checkProxy(proxyIP=ip_port,protocol="http",timeout=3)
+def checkValid(item):
+    starttime = datetime.datetime.now()
+    rst = checkProxy(proxyIP=item.ip_port,protocol="http",timeout=5)
+    costtimie = (datetime.datetime.now()-starttime).seconds
     if rst is not None and rst["status"] == "ok":
-        proxy = freshProxy(ip_port=ip_port,type="HTTP",location=rst["rstLocation"].encode("utf-8"))
+
+        proxy = freshProxy(ip_port=item.ip_port,
+                           type=item.type,
+                           location=rst["rstLocation"].encode("utf-8"),
+                           speed=costtimie,
+                           source=item.source,
+                           rule_id=item.rule_id,
+                           lastcheck=datetime.datetime.now()
+                           )
+
         print rst["rstIP"]
         print rst["rstLocation"].encode("utf-8")
         session=loadSession()
@@ -215,7 +226,7 @@ def checkValid(ip_port):
             print e.message
 
     else:
-        deleteProxy(ip_port)
+        deleteProxy(item)
 
 def main() :
     global SHARE_Q
@@ -223,17 +234,25 @@ def main() :
     threads = []
     session=loadSession()
     proxies = session.query(Proxy).filter(Proxy.type == "HTTP").order_by(Proxy.indate.desc()).limit(20000)
-    for proxy in proxies :  #向队列中放入任务
-        SHARE_Q.put(proxy.ip_port)
+
+    # 向队列中放入任务
+    for proxy in proxies :
+        SHARE_Q.put(proxy)
+
+    #控制线程数量
     for i in xrange(_WORKER_THREAD_NUM) :
         thread = MyThread(worker)
         thread.start()
         threads.append(thread)
+
     for thread in threads :
         thread.join()
+
+    #当队列ACTIVE_Q中的item不为空时循环执行checkValid()
     while not ACTIVE_Q.empty():
         item = ACTIVE_Q.get()
         checkValid(item)
+
 if __name__ == '__main__':
     starttime=datetime.datetime.now()
     main()
