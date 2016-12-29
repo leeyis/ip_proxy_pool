@@ -17,9 +17,9 @@ settings.set("DOWNLOADER_MIDDLEWARES",config.DOWNLOADER_MIDDLEWARES)
 
 settings.set("DOWNLOAD_DELAY",config.DOWNLOAD_DELAY)
 
-settings.get("COOKIES_ENABLED",config.COOKIES_ENABLED)
+settings.set("COOKIES_ENABLED",config.COOKIES_ENABLED)
 
-settings.get("ROBOTSTXT_OBEY",config.ROBOTSTXT_OBEY)
+settings.set("ROBOTSTXT_OBEY",config.ROBOTSTXT_OBEY)
 
 process = CrawlerProcess(settings)
 
